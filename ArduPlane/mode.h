@@ -17,6 +17,8 @@
 #endif
 
 #include <AP_Quicktune/AP_Quicktune.h>
+#include <AP_RocketControl/RocketStateMachine.h>
+#include <AP_RocketControl/RocketAttitudeControl.h>
 
 class AC_PosControl;
 class AC_AttitudeControl_Multi;
@@ -62,6 +64,7 @@ public:
 #if HAL_QUADPLANE_ENABLED
         LOITER_ALT_QLAND = 25,
 #endif
+        ROCKET        = 26,
     };
 
     // Constructor
@@ -911,3 +914,29 @@ protected:
 };
 
 #endif
+
+class ModeRocket : public Mode
+{
+public:
+    ModeRocket();
+    Number mode_number() const override { return Number::ROCKET; }
+    const char *name() const override { return "ROCKET"; }
+    const char *name4() const override { return "RCKT"; }
+    void update() override;
+    bool _enter() override;
+    void _exit() override;
+
+    static const struct AP_Param::GroupInfo var_info[];
+
+    // controller + FSM params (registered as RKTC_)
+    AP_Float att_p, rate_p, rate_i, rate_d, q_ref, q_floor, imax;
+    AP_Float lnch_acc, burn_acc, abrt_tilt, chute_dly;
+
+private:
+    RocketControl::RocketStateMachine _fsm;
+    RocketControl::RocketAttitudeControl _ctrl;
+    bool _pyro_fired;
+    uint32_t _last_update_ms;
+    void set_fins(float cy, float cz);
+    void announce();
+};

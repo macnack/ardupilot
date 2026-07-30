@@ -334,6 +334,7 @@ private:
 #if HAL_SOARING_ENABLED
     ModeThermal mode_thermal;
 #endif
+    ModeRocket mode_rocket;
 
 #if AP_QUICKTUNE_ENABLED
     AP_Quicktune quicktune;
