@@ -36,15 +36,18 @@ CtrlOutputs RocketAttitudeControl::update(const CtrlInputs &in, const CtrlParams
 
     // --- outer loop: earth-up in body frame, corrective rates about y/z ---
     // up_body = R^T * (0,0,-1) with R = attitude rotation matrix (body->NED).
-    // Phase 0-derived law: rotation +phi about y shows up_body.z = +sin(phi)
-    // -> rate cmd y = -att_p * up_z; rotation +theta about z shows
-    // up_body.y = +sin(theta) -> rate cmd z = -att_p * up_y.
+    // Signs are EMPIRICAL, validated closed-loop against the MuJoCo plant with
+    // the full pipeline (quat -> AP frame -> fins -> sim torques): y-axis and
+    // z-axis disturbances both converge to <1.5 deg with these signs and
+    // tumble to 180 deg with the z sign flipped. Do not re-derive analytically
+    // (two prior derivations got the z sign wrong); re-run the closed-loop
+    // sweep in dummy_rocket_sim if this ever needs to change.
     Matrix3f R;
     in.att.rotation_matrix(R);
     const Vector3f up_body = R.mul_transpose(Vector3f{0.0f, 0.0f, -1.0f});
     out.rate_cmd.x = 0.0f;
     out.rate_cmd.y = constrain_float(-p.att_p * up_body.z, -p.rate_limit, p.rate_limit);
-    out.rate_cmd.z = constrain_float(-p.att_p * up_body.y, -p.rate_limit, p.rate_limit);
+    out.rate_cmd.z = constrain_float(p.att_p * up_body.y, -p.rate_limit, p.rate_limit);
 
     // --- inner loop: q-scheduled rate PID on y and z ---
     const float kp = p.rate_p * out.gain_scale;

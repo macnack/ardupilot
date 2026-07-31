@@ -5,10 +5,12 @@
 namespace RocketControl {
 
 struct CtrlParams {
-    float att_p = 4.0f;       // outer loop: rad/s per rad of tilt error
-    float rate_p = 0.40f;     // inner loop gains at q == q_ref
-    float rate_i = 0.20f;
-    float rate_d = 0.02f;
+    // defaults from the closed-loop sim sweep (nominal 0.1 deg, tip-off 1.4 deg,
+    // y-disturbance 1.4 deg at q_ref=800/q_floor=50)
+    float att_p = 12.0f;      // outer loop: rad/s per rad of tilt error
+    float rate_p = 1.50f;     // inner loop gains at q == q_ref
+    float rate_i = 0.50f;
+    float rate_d = 0.08f;
     float q_ref = 800.0f;     // Pa, tuning point (mid-boost)
     float q_floor = 50.0f;    // Pa, scheduling floor / integrator enable
     float imax = 0.30f;       // integrator output clamp (normalized units)

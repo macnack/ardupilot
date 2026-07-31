@@ -16,10 +16,10 @@ const AP_Param::GroupInfo ModeRocket::var_info[] = {
     // @Param: ATT_P
     // @DisplayName: Rocket attitude P gain
     // @Description: Outer-loop body-rate command per radian of tilt error
-    AP_GROUPINFO("ATT_P", 1, ModeRocket, att_p, 4.0f),
-    AP_GROUPINFO("RAT_P", 2, ModeRocket, rate_p, 0.40f),
-    AP_GROUPINFO("RAT_I", 3, ModeRocket, rate_i, 0.20f),
-    AP_GROUPINFO("RAT_D", 4, ModeRocket, rate_d, 0.02f),
+    AP_GROUPINFO("ATT_P", 1, ModeRocket, att_p, 12.0f),
+    AP_GROUPINFO("RAT_P", 2, ModeRocket, rate_p, 1.50f),
+    AP_GROUPINFO("RAT_I", 3, ModeRocket, rate_i, 0.50f),
+    AP_GROUPINFO("RAT_D", 4, ModeRocket, rate_d, 0.08f),
     AP_GROUPINFO("Q_REF", 5, ModeRocket, q_ref, 800.0f),
     AP_GROUPINFO("Q_FLOOR", 6, ModeRocket, q_floor, 50.0f),
     AP_GROUPINFO("IMAX", 7, ModeRocket, imax, 0.30f),

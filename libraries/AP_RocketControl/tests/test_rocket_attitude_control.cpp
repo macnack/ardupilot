@@ -53,10 +53,11 @@ TEST(RocketAttitudeControl, TiltAboutZCommandsCorrectiveCz)
     c.reset();
     CtrlParams p;
     auto out = c.update(base_in(nose_up_tilted_z(radians(10.0f))), p);
-    // body rotated +theta about z_AP -> up_body_y = +sin(theta) -> corrective
-    // rate about -z -> sim-roll output cz must be NEGATIVE (Phase 0-validated
-    // sign convention: cz = -KP*up_y + KD*gyro_z in the PD limit)
-    EXPECT_LT(out.cz, -0.01f);
+    // Empirical convention (closed-loop validated against the MuJoCo plant):
+    // attitude post-rotated +10 deg about body z gives up_body.y = -sin(10)
+    // -> rate_cmd.z = +att_p*up_y < 0 -> uz < 0 -> cz = -uz > 0.
+    // The opposite sign tumbles the sim to 180 deg; see RocketAttitudeControl.cpp.
+    EXPECT_GT(out.cz, 0.01f);
     EXPECT_NEAR(out.cy, 0.0f, 1e-3f);
     EXPECT_NEAR(out.rate_cmd.x, 0.0f, 1e-6f);   // never command roll axis
 }
