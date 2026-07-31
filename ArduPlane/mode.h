@@ -939,5 +939,6 @@ private:
     bool _pyro_fired;
     uint32_t _last_update_ms;
     void set_fins(float cy, float cz);
+    void set_pyro_mirror();
     void announce();
 };

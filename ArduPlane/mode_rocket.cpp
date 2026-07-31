@@ -79,6 +79,16 @@ void ModeRocket::set_fins(float cy, float cz)
     SRV_Channels::set_output_pwm(SRV_Channel::k_scripting4, pwm(-cy));
 }
 
+void ModeRocket::set_pyro_mirror()
+{
+    // Sim mirror of the pyro relay: the JSON SITL backend transmits only servo
+    // PWM, so the MuJoCo bridge watches k_parachute_release to deploy the
+    // chute. The relay stays the authority; this only reflects _pyro_fired.
+    // CHUTE_ENABLED is 0, so AP_Parachute never contends for this channel.
+    SRV_Channels::set_output_pwm(SRV_Channel::k_parachute_release,
+                                 _pyro_fired ? 2000 : 1000);
+}
+
 void ModeRocket::announce()
 {
     gcs().send_text(MAV_SEVERITY_INFO, "RKT: %s",
@@ -87,6 +97,7 @@ void ModeRocket::announce()
 
 void ModeRocket::update()
 {
+    set_pyro_mirror();
     const uint32_t now_ms = AP_HAL::millis();
     const float dt = MAX((now_ms - _last_update_ms) * 1e-3f, 1e-3f);
     _last_update_ms = now_ms;
