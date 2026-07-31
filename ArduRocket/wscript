@@ -1,0 +1,24 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+def build(bld):
+    vehicle = bld.path.name
+    bld.ap_stlib(
+        name=vehicle + '_libs',
+        ap_vehicle=vehicle,
+        ap_libraries=bld.ap_common_vehicle_libraries() + [
+            'AP_RocketControl',
+            # required by GCS_Common.cpp / AP_Vehicle in the shared libs even
+            # though ArduRocket itself uses none of them directly
+            'AP_AdvancedFailsafe',
+            'AP_Avoidance',
+            'AP_LTM_Telem',
+            'AP_Devo_Telem',
+        ],
+    )
+
+    bld.ap_program(
+        program_name='ardurocket',
+        program_groups=['bin', 'ardurocket'],
+        use=vehicle + '_libs',
+    )
