@@ -7,6 +7,7 @@
 #include <AP_Common/AP_Common.h>
 #include <AP_Param/AP_Param.h>
 #include <SRV_Channel/SRV_Channel.h>
+#include "RC_Channel.h"
 
 class Parameters
 {
@@ -33,6 +34,7 @@ public:
         k_param_sitl,
         k_param_NavEKF3,
         k_param_servo_channels,
+        k_param_rc_channels,
         k_param_gcs0,
         k_param_gcs1,
 
@@ -78,6 +80,11 @@ public:
 
     // fin servo output channels (SERVOn_*)
     SRV_Channels servo_channels;
+
+    // RCn_* -- ArduRocket takes no pilot input, but shared library code
+    // (GCS::send_textv -> AP_CRSF_Telem::queue_message) dereferences the
+    // rc() singleton, so the object must exist. See RC_Channel.h.
+    RC_Channels_Rocket rc_channels;
 
     Parameters() {}
 };

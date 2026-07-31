@@ -162,6 +162,10 @@ const AP_Param::Info ArduRocket::var_info[] = {
     // @Path: ../libraries/SRV_Channel/SRV_Channels.cpp
     GGROUP(servo_channels, "SERVO", SRV_Channels),
 
+    // @Group: RC
+    // @Path: ../libraries/RC_Channel/RC_Channels_VarInfo.h
+    GGROUP(rc_channels, "RC", RC_Channels_Rocket),
+
     // @Group: SR0_
     // @Path: ../libraries/GCS_MAVLink/GCS_Param.cpp
     GOBJECTN(_gcs.chan_parameters[0], gcs0, "SR0_", GCS_MAVLINK_Parameters),

@@ -58,6 +58,14 @@ public:
 
     MAV_TYPE get_frame_mav_type() const;
 
+#if HAL_LOGGING_ENABLED
+    static const struct LogStructure log_structure[];
+    const struct LogStructure *get_log_structures() const override {
+        return log_structure;
+    }
+    uint8_t get_num_log_structures() const override;
+#endif
+
     // drive the four fin servos; inputs normalized to [-1, 1]
     void set_fins(float cy, float cz);
 
