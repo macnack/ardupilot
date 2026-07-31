@@ -20,6 +20,18 @@ void ArduRocket::init_ardupilot()
     relay.init();       // pyro channel
 #endif
 
+    // AHRS + INS ground start. AP_Vehicle does NOT do this: every vehicle
+    // calls ins.init() itself (cf. Blimp/system.cpp:119,
+    // ArduPlane/system.cpp:434). Without it the INS never produces samples,
+    // so scheduler.loop() blocks forever in ins.wait_for_sample() and the
+    // vehicle never runs a single loop -- no MAVLink, no logging.
+    ahrs.init();
+    ahrs.set_vehicle_class(AP_AHRS::VehicleClass::FIXED_WING);
+    ins.init(scheduler.get_loop_rate_hz());
+    ahrs.reset();
+
+    barometer.calibrate();
+
     // start in IDLE: fins neutral, pyro untouched
     control_mode = Mode::Number::IDLE;
     flightmode = &mode_idle;
