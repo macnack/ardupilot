@@ -27,6 +27,18 @@ const AP_Param::GroupInfo ModeRocket::var_info[] = {
     AP_GROUPINFO("BURN_ACC", 9, ModeRocket, burn_acc, 5.0f),
     AP_GROUPINFO("ABRT_TILT", 10, ModeRocket, abrt_tilt, 60.0f),
     AP_GROUPINFO("CHUTE_DLY", 11, ModeRocket, chute_dly, 1.0f),
+    // @Param: D_FILT
+    // @DisplayName: Rocket rate D-term filter cutoff
+    // @Description: Low-pass cutoff (Hz) on the rate-loop D term; damps the
+    // gyro-noise-driven fin chatter seen in Phase 1. 0 disables filtering.
+    AP_GROUPINFO("D_FILT", 12, ModeRocket, d_filt_hz, 2.0f),
+    // @Param: SLEW
+    // @DisplayName: Rocket fin output slew limit
+    // @Description: Max rate of change (normalized units/s) of the fin
+    // command. 0 disables the limit. Off by default: the closed-loop sweep
+    // found this stacked with D_FILT hurts tilt tracking more than either
+    // alone (see RocketAttitudeControl.h) — only enable with a fresh sweep.
+    AP_GROUPINFO("SLEW", 13, ModeRocket, slew_rate, 0.0f),
     AP_GROUPEND
 };
 
@@ -146,6 +158,8 @@ void ModeRocket::update()
         cp.q_ref = q_ref;
         cp.q_floor = q_floor;
         cp.imax = imax;
+        cp.d_filt_hz = d_filt_hz;
+        cp.slew_rate = slew_rate;
         RocketControl::CtrlInputs ci;
         ci.att = att;
         ci.gyro = gyro;

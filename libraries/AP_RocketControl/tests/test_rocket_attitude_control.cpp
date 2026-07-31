@@ -100,6 +100,11 @@ TEST(RocketAttitudeControl, IntegratorClampsAndOnlyRunsWhenEnabled)
     CtrlParams p;
     CtrlInputs in = base_in(nose_up_tilted_z(radians(20.0f)));
     in.integrate = false;
+    // let the Phase 2a D-filter/slew-limit settle to steady state first so
+    // this test isolates integrator behavior, not output-shaping dynamics.
+    for (int i = 0; i < 400; i++) {
+        c.update(in, p);
+    }
     auto a = c.update(in, p);
     auto b = c.update(in, p);
     EXPECT_NEAR(a.cz, b.cz, 1e-5f);             // no integration -> identical
@@ -111,6 +116,61 @@ TEST(RocketAttitudeControl, IntegratorClampsAndOnlyRunsWhenEnabled)
     EXPECT_GE(final_out.cz, -1.0f);             // output clamped
     // integrator contribution alone bounded by imax (D term ~0 in steady state)
     EXPECT_LE(fabsf(final_out.cz - b.cz), p.imax + 0.15f);
+}
+
+// Phase 2a chatter fix: sample-to-sample gyro noise (Nyquist-frequency
+// alternation, the worst case for a raw finite-difference D term) must
+// produce far less fin-command total variation once low-pass filtered —
+// this is the chatter metric from rocket/reports/phase1_results.md Known
+// Limitations, applied at unit-test scale.
+static float fin_total_variation(RocketAttitudeControl &c, const CtrlParams &p,
+                                  const Quaternion &att, float noise_amp, int n)
+{
+    float tv = 0.0f;
+    float prev_cz = 0.0f;
+    for (int i = 0; i < n; i++) {
+        CtrlInputs in = base_in(att);
+        in.gyro.z = (i % 2 == 0) ? noise_amp : -noise_amp;
+        auto out = c.update(in, p);
+        if (i > 0) {
+            tv += fabsf(out.cz - prev_cz);
+        }
+        prev_cz = out.cz;
+    }
+    return tv;
+}
+
+TEST(RocketAttitudeControl, DTermFilterAttenuatesAlternatingGyroNoise)
+{
+    CtrlParams p;
+    p.slew_rate = 0.0f;  // isolate the D filter from the output slew limit
+
+    RocketAttitudeControl filtered;
+    filtered.reset();
+    const float tv_filtered = fin_total_variation(filtered, p, nose_up(), 0.01f, 40);
+
+    CtrlParams unfiltered = p;
+    unfiltered.d_filt_hz = 0.0f;
+    RocketAttitudeControl raw;
+    raw.reset();
+    const float tv_unfiltered = fin_total_variation(raw, unfiltered, nose_up(), 0.01f, 40);
+
+    EXPECT_GT(tv_unfiltered, 1e-3f);              // sanity: raw D does chatter
+    EXPECT_LT(tv_filtered, 0.25f * tv_unfiltered); // filtered chatter well below raw
+}
+
+// Phase 2a chatter fix: the fin command cannot move faster than slew_rate,
+// even when the controller demand saturates instantly (as it does at max-q,
+// see phase1_results.md).
+TEST(RocketAttitudeControl, OutputSlewLimitCapsCommandStep)
+{
+    RocketAttitudeControl c;
+    c.reset();
+    CtrlParams p;
+    p.slew_rate = 4.0f;  // units/s
+    CtrlInputs in = base_in(nose_up_tilted_z(radians(20.0f)));  // saturates uz
+    auto out = c.update(in, p);
+    EXPECT_NEAR(fabsf(out.cz), p.slew_rate * in.dt, 1e-5f);
 }
 
 TEST(RocketAttitudeControl, NonFiniteInputHoldsPreviousOutputAndFlags)

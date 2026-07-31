@@ -931,6 +931,7 @@ public:
     // controller + FSM params (registered as RKTC_)
     AP_Float att_p, rate_p, rate_i, rate_d, q_ref, q_floor, imax;
     AP_Float lnch_acc, burn_acc, abrt_tilt, chute_dly;
+    AP_Float d_filt_hz, slew_rate;
 
 private:
     RocketControl::RocketStateMachine _fsm;

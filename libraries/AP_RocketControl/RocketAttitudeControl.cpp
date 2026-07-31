@@ -9,6 +9,9 @@ void RocketAttitudeControl::reset()
     _iy = _iz = 0.0f;
     _prev_ey = _prev_ez = 0.0f;
     _first_sample = true;
+    _d_filt_y.reset();
+    _d_filt_z.reset();
+    _prev_cy = _prev_cz = 0.0f;
     _held = CtrlOutputs{};
     _have_held = false;
 }
@@ -65,11 +68,21 @@ CtrlOutputs RocketAttitudeControl::update(const CtrlInputs &in, const CtrlParams
 
     // no D on the first sample after reset: _prev_* is stale, the raw
     // difference would be a derivative kick that slams the fins at engage
-    const float dy = _first_sample ? 0.0f : (ey - _prev_ey) / in.dt;
-    const float dz = _first_sample ? 0.0f : (ez - _prev_ez) / in.dt;
+    float dy = _first_sample ? 0.0f : (ey - _prev_ey) / in.dt;
+    float dz = _first_sample ? 0.0f : (ez - _prev_ez) / in.dt;
     _first_sample = false;
     _prev_ey = ey;
     _prev_ez = ez;
+
+    // Phase 2a: raw finite-difference D on gyro noise was the source of the
+    // rail-to-rail fin chatter measured in Phase 1 (~10 Hz limit cycle) — low
+    // pass it before it hits the fins.
+    if (p.d_filt_hz > 0.0f) {
+        _d_filt_y.set_cutoff_frequency(p.d_filt_hz);
+        _d_filt_z.set_cutoff_frequency(p.d_filt_hz);
+        dy = _d_filt_y.apply(dy, in.dt);
+        dz = _d_filt_z.apply(dz, in.dt);
+    }
 
     const float uy = kp * ey + _iy + kd * dy;   // torque demand about +y_AP
     const float uz = kp * ez + _iz + kd * dz;   // torque demand about +z_AP
@@ -77,11 +90,23 @@ CtrlOutputs RocketAttitudeControl::update(const CtrlInputs &in, const CtrlParams
     // --- output mapping: cy drives torque about +y directly; the sim-roll
     // fin pair drives torque about x_r = -z_AP, so cz = -uz (the single
     // axis flip in the whole chain, see Phase 0 conventions) ---
-    out.cy = constrain_float(uy, -1.0f, 1.0f);
-    out.cz = constrain_float(-uz, -1.0f, 1.0f);
+    float cy = constrain_float(uy, -1.0f, 1.0f);
+    float cz = constrain_float(-uz, -1.0f, 1.0f);
+
+    // Phase 2a: cap the commanded rate of change of the fin output itself,
+    // independent of what drove it — the second half of the chatter fix.
+    if (p.slew_rate > 0.0f) {
+        const float max_step = p.slew_rate * in.dt;
+        cy = constrain_float(cy, _prev_cy - max_step, _prev_cy + max_step);
+        cz = constrain_float(cz, _prev_cz - max_step, _prev_cz + max_step);
+    }
+    out.cy = cy;
+    out.cz = cz;
     out.saturated_y = fabsf(uy) >= 1.0f;
     out.saturated_z = fabsf(uz) >= 1.0f;
 
+    _prev_cy = cy;
+    _prev_cz = cz;
     _held = out;
     _have_held = true;
     return out;
