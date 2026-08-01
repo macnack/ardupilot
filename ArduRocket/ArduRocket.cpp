@@ -37,11 +37,6 @@ const AP_Scheduler::Task ArduRocket::scheduler_tasks[] = {
     SCHED_TASK(update_sensors,                                          10, 200,   4),
     // set home once the EKF has an origin; AHRS stays unhealthy without it
     SCHED_TASK(update_home_from_EKF,                                    10,  50,   5),
-#if HAL_LOGGING_ENABLED
-    // EKF/IMU/baro/GPS logging is vehicle-scheduled: AP::ahrs().Log_Write()
-    // is what emits the XKF* records, and nothing calls it for you.
-    SCHED_TASK(update_logging10,                                        10, 300,  20),
-#endif
     SCHED_TASK_CLASS(GCS,  (GCS*)&rocket._gcs,          update_receive, 400, 180,   6),
     SCHED_TASK_CLASS(GCS,  (GCS*)&rocket._gcs,          update_send,    400, 550,   9),
 #if HAL_LOGGING_ENABLED
@@ -50,6 +45,13 @@ const AP_Scheduler::Task ArduRocket::scheduler_tasks[] = {
     SCHED_TASK_CLASS(AP_InertialSensor, &rocket.ins,    periodic,       400,  50,  15),
 #if HAL_LOGGING_ENABLED
     SCHED_TASK_CLASS(AP_Scheduler,      &rocket.scheduler, update_logging, 0.1, 75, 18),
+    // EKF/IMU/baro/GPS logging is vehicle-scheduled: AP::ahrs().Log_Write()
+    // is what emits the XKF* records, and nothing calls it for you.
+    // MUST stay last: AP_Scheduler.cpp:153-157 requires the vehicle task
+    // priorities be non-decreasing and raises INTERNAL_ERROR(flow_of_control)
+    // otherwise -- which latches an internal-error flag that then fails every
+    // pre-arm check for the rest of the flight.
+    SCHED_TASK(update_logging10,                                        10, 300,  20),
 #endif
 };
 
