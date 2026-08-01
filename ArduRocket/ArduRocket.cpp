@@ -23,6 +23,10 @@ const AP_HAL::HAL& hal = AP_HAL::get_HAL();
 const AP_Scheduler::Task ArduRocket::scheduler_tasks[] = {
     // update INS immediately to get current gyro data populated
     FAST_TASK_CLASS(AP_InertialSensor, &rocket.ins, update),
+    // run the EKF. AP_Vehicle does NOT do this for you -- without it the
+    // estimator never runs, so there is no attitude/position solution, GPS
+    // never reports a usable fix, and arming is refused forever.
+    FAST_TASK(read_AHRS),
     // run the rocket controller
     FAST_TASK(update_flight_mode),
     // push fin commands to the outputs
@@ -48,6 +52,20 @@ void ArduRocket::get_scheduler_tasks(const AP_Scheduler::Task *&tasks,
     tasks = &scheduler_tasks[0];
     task_count = ARRAY_SIZE(scheduler_tasks);
     log_bit = MASK_LOG_PM;
+}
+
+constexpr int8_t ArduRocket::_failsafe_priorities[1];
+
+void ArduRocket::handle_battery_failsafe(const char *type_str, const int8_t action)
+{
+    // report only -- see the rationale in ArduRocket.h
+    gcs().send_text(MAV_SEVERITY_CRITICAL, "RKT_ERR: battery failsafe (%s)", type_str);
+}
+
+void ArduRocket::read_AHRS()
+{
+    // skip the INS update: the FAST_TASK above already ran it this tick
+    ahrs.update(true);
 }
 
 void ArduRocket::update_flight_mode()

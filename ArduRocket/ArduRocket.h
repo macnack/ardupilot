@@ -20,6 +20,7 @@
 #include <AP_AHRS/AP_AHRS.h>
 #include <AP_Logger/AP_Logger.h>
 #include <AP_Relay/AP_Relay.h>
+#include <AP_BattMonitor/AP_BattMonitor.h>
 #include <SRV_Channel/SRV_Channel.h>
 
 #include "config.h"
@@ -84,6 +85,23 @@ private:
     GCS_Rocket _gcs;
     AP_Arming_Rocket arming;
 
+    // AP_BattMonitor is NOT an AP_Vehicle member: each vehicle declares its
+    // own. AP_Arming::pre_arm_checks() calls AP::battery().arming_checks()
+    // unconditionally, so without this the first pre-arm check segfaults.
+    //
+    // There is no useful battery-failsafe ACTION for a rocket: once the motor
+    // lights the trajectory is committed and there is nothing to land or
+    // return. The handler therefore only reports; recovery stays with the
+    // flight-phase FSM and its pyro.
+    void handle_battery_failsafe(const char *type_str, const int8_t action);
+    static constexpr int8_t _failsafe_priorities[] = {
+        -1  // the priority list must end with a sentinel of -1
+    };
+    AP_BattMonitor battery{MASK_LOG_CURRENT,
+                           FUNCTOR_BIND_MEMBER(&ArduRocket::handle_battery_failsafe,
+                                               void, const char *, const int8_t),
+                           _failsafe_priorities};
+
     ModeIdle   mode_idle;
     ModeFlight mode_flight;
 
@@ -91,6 +109,7 @@ private:
     Mode *flightmode;
 
     // scheduler task bodies
+    void read_AHRS();
     void update_flight_mode();
     void set_servos();
 

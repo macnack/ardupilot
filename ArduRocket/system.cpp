@@ -14,7 +14,15 @@ void ArduRocket::init_ardupilot()
     // telemetry slots on the serial ports
     gcs().setup_uarts();
 
+    notify.init();
+    battery.init();
     barometer.init();
+
+    // gps.init() is vehicle-owned too (Blimp/system.cpp:63,
+    // ArduPlane/system.cpp:75). Skip it and AP_GPS::update_primary()
+    // dereferences an uninitialised backend the first time the 50 Hz GPS
+    // scheduler task fires -> SIGSEGV mid-flight-loop.
+    gps.init();
 
 #if AP_RELAY_ENABLED
     relay.init();       // pyro channel

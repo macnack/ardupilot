@@ -145,6 +145,7 @@ const AP_Param::Info ArduRocket::var_info[] = {
     // @Group: NTF_
     // @Path: ../libraries/AP_Notify/AP_Notify.cpp
     GOBJECT(notify, "NTF_", AP_Notify),
+    GOBJECT(battery, "BATT", AP_BattMonitor),
 
 #if AP_SIM_ENABLED
     // @Group: SIM_

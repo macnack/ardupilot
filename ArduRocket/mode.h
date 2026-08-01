@@ -80,4 +80,5 @@ private:
     bool _pyro_fired = false;
     uint32_t _last_update_ms = 0;
     void announce();
+    void set_pyro_mirror();
 };
