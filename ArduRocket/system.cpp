@@ -16,6 +16,16 @@ void ArduRocket::init_ardupilot()
 
     notify.init();
     battery.init();
+
+    // Compass init is vehicle-owned (ArduPlane/system.cpp:65-66). Without it
+    // the compass never comes healthy, EKF3 has no yaw source, so it never
+    // completes alignment: EKF_STATUS_REPORT stays all-zero and
+    // ahrs.healthy() stays false forever -> ModeFlight::_enter() refuses.
+#if AP_COMPASS_ENABLED
+    AP::compass().set_log_bit(MASK_LOG_IMU);
+    AP::compass().init();
+#endif
+
     barometer.init();
 
     // gps.init() is vehicle-owned too (Blimp/system.cpp:63,
@@ -34,7 +44,13 @@ void ArduRocket::init_ardupilot()
     // so scheduler.loop() blocks forever in ins.wait_for_sample() and the
     // vehicle never runs a single loop -- no MAVLink, no logging.
     ahrs.init();
+    // Match ArduPlane's AHRS setup (ArduPlane/system.cpp:429-432). fly_forward
+    // in particular is not cosmetic: it tells EKF3 it may align yaw from the
+    // GPS velocity vector. Phase 2b is a differential test against ModeRocket
+    // on the plane host, so the estimator configuration must match.
+    ahrs.set_fly_forward(true);
     ahrs.set_vehicle_class(AP_AHRS::VehicleClass::FIXED_WING);
+    ahrs.set_wind_estimation_enabled(true);
     ins.init(scheduler.get_loop_rate_hz());
     ahrs.reset();
 

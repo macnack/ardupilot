@@ -59,6 +59,10 @@ public:
 
     MAV_TYPE get_frame_mav_type() const;
 
+    // home handling -- AP_Vehicle defaults these to false and calls nothing
+    bool set_home_to_current_location(bool lock) override WARN_IF_UNUSED;
+    bool set_home(const Location &loc, bool lock) override WARN_IF_UNUSED;
+
 #if HAL_LOGGING_ENABLED
     static const struct LogStructure log_structure[];
     const struct LogStructure *get_log_structures() const override {
@@ -109,6 +113,8 @@ private:
     Mode *flightmode;
 
     // scheduler task bodies
+    void update_batt_compass();
+    void update_home_from_EKF();
     void read_AHRS();
     void update_flight_mode();
     void set_servos();

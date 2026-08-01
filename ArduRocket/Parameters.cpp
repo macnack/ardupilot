@@ -4,6 +4,7 @@
 #include <AP_InertialSensor/AP_InertialSensor.h>
 #include <AP_GPS/AP_GPS.h>
 #include <AP_Baro/AP_Baro.h>
+#include <AP_Compass/AP_Compass.h>
 #include <AP_Relay/AP_Relay.h>
 #include <AP_Scheduler/AP_Scheduler.h>
 #include <AP_BoardConfig/AP_BoardConfig.h>
@@ -146,6 +147,9 @@ const AP_Param::Info ArduRocket::var_info[] = {
     // @Path: ../libraries/AP_Notify/AP_Notify.cpp
     GOBJECT(notify, "NTF_", AP_Notify),
     GOBJECT(battery, "BATT", AP_BattMonitor),
+#if AP_COMPASS_ENABLED
+    GOBJECT(compass, "COMPASS_", Compass),
+#endif
 
 #if AP_SIM_ENABLED
     // @Group: SIM_

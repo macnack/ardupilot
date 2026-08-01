@@ -33,6 +33,12 @@ const AP_Scheduler::Task ArduRocket::scheduler_tasks[] = {
     FAST_TASK(set_servos),
 
     SCHED_TASK_CLASS(AP_GPS,            &rocket.gps,    update,         50, 200,   3),
+    // nothing else reads these: without a periodic compass.read() the compass
+    // never produces samples, so it never reports healthy, so EKF3 has no yaw
+    // source and never completes alignment (ahrs.healthy() stays false).
+    SCHED_TASK(update_batt_compass,                                     10, 120,   4),
+    // set home once the EKF has an origin; AHRS stays unhealthy without it
+    SCHED_TASK(update_home_from_EKF,                                    10,  50,   5),
     SCHED_TASK_CLASS(GCS,  (GCS*)&rocket._gcs,          update_receive, 400, 180,   6),
     SCHED_TASK_CLASS(GCS,  (GCS*)&rocket._gcs,          update_send,    400, 550,   9),
 #if HAL_LOGGING_ENABLED
@@ -60,6 +66,18 @@ void ArduRocket::handle_battery_failsafe(const char *type_str, const int8_t acti
 {
     // report only -- see the rationale in ArduRocket.h
     gcs().send_text(MAV_SEVERITY_CRITICAL, "RKT_ERR: battery failsafe (%s)", type_str);
+}
+
+void ArduRocket::update_batt_compass()
+{
+    // battery first: it may be used for compass motor-interference compensation
+    battery.read();
+#if AP_COMPASS_ENABLED
+    if (AP::compass().available()) {
+        compass.set_voltage(battery.voltage());
+        compass.read();
+    }
+#endif
 }
 
 void ArduRocket::read_AHRS()

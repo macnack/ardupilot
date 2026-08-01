@@ -32,6 +32,7 @@ public:
         k_param_BoardConfig,
         k_param_notify,
         k_param_battery,
+        k_param_compass,
         k_param_sitl,
         k_param_NavEKF3,
         k_param_servo_channels,
