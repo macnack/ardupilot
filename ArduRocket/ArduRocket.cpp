@@ -33,12 +33,15 @@ const AP_Scheduler::Task ArduRocket::scheduler_tasks[] = {
     FAST_TASK(set_servos),
 
     SCHED_TASK_CLASS(AP_GPS,            &rocket.gps,    update,         50, 200,   3),
-    // nothing else reads these: without a periodic compass.read() the compass
-    // never produces samples, so it never reports healthy, so EKF3 has no yaw
-    // source and never completes alignment (ahrs.healthy() stays false).
-    SCHED_TASK(update_batt_compass,                                     10, 120,   4),
+    // nothing else reads baro/airspeed/compass; the EKF starves without them
+    SCHED_TASK(update_sensors,                                          10, 200,   4),
     // set home once the EKF has an origin; AHRS stays unhealthy without it
     SCHED_TASK(update_home_from_EKF,                                    10,  50,   5),
+#if HAL_LOGGING_ENABLED
+    // EKF/IMU/baro/GPS logging is vehicle-scheduled: AP::ahrs().Log_Write()
+    // is what emits the XKF* records, and nothing calls it for you.
+    SCHED_TASK(update_logging10,                                        10, 300,  20),
+#endif
     SCHED_TASK_CLASS(GCS,  (GCS*)&rocket._gcs,          update_receive, 400, 180,   6),
     SCHED_TASK_CLASS(GCS,  (GCS*)&rocket._gcs,          update_send,    400, 550,   9),
 #if HAL_LOGGING_ENABLED
@@ -68,9 +71,20 @@ void ArduRocket::handle_battery_failsafe(const char *type_str, const int8_t acti
     gcs().send_text(MAV_SEVERITY_CRITICAL, "RKT_ERR: battery failsafe (%s)", type_str);
 }
 
-void ArduRocket::update_batt_compass()
+void ArduRocket::update_sensors()
 {
-    // battery first: it may be used for compass motor-interference compensation
+    // Measured, not guessed: without barometer.update() the EKF gets no
+    // height observation, XKF4 shows a height-fusion timeout, and the filter
+    // dead-reckons the IMU into divergence (VN/VD in the hundreds of m/s,
+    // PD ~10 km on the pad) -- which is why NavEKF3_core::healthy() is false.
+    // ArduPlane calls this from update_alt() at 10 Hz (ArduPlane.cpp:597).
+    barometer.update();
+#if AP_AIRSPEED_ENABLED
+    // q for the gain schedule comes from EAS; the sensor also needs reading
+    airspeed.update();
+#endif
+
+    // battery before compass: it may feed compass motor-interference comp
     battery.read();
 #if AP_COMPASS_ENABLED
     if (AP::compass().available()) {
@@ -79,6 +93,17 @@ void ArduRocket::update_batt_compass()
     }
 #endif
 }
+
+#if HAL_LOGGING_ENABLED
+void ArduRocket::update_logging10()
+{
+    // XKF1..XKF5 / XKQ / XKV* -- the estimator's own state, innovations and
+    // variances. Without this the dataflash has no EKF records at all.
+    AP::ahrs().Log_Write();
+    ahrs.Log_Write_Home_And_Origin();
+    ins.Write_IMU();
+}
+#endif  // HAL_LOGGING_ENABLED
 
 void ArduRocket::read_AHRS()
 {

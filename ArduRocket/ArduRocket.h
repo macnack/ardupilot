@@ -113,8 +113,11 @@ private:
     Mode *flightmode;
 
     // scheduler task bodies
-    void update_batt_compass();
+    void update_sensors();
     void update_home_from_EKF();
+#if HAL_LOGGING_ENABLED
+    void update_logging10();
+#endif
     void read_AHRS();
     void update_flight_mode();
     void set_servos();
