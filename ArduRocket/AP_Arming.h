@@ -11,4 +11,8 @@ public:
     CLASS_NO_COPY(AP_Arming_Rocket);
 
     bool pre_arm_checks(bool display_failure) override;
+
+private:
+    // rocket-specific gates: AHRS health, EKF origin, FSM at PAD, pad tilt
+    bool rocket_checks(bool display_failure);
 };
