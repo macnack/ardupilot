@@ -18,6 +18,17 @@ bool ArduRocket::set_mode(Mode::Number num, ModeReason reason)
         return true;
     }
 
+    // Once the rocket has left the pad the flight is committed: dropping to
+    // IDLE would neutralize the fins mid-ascent. You cannot un-launch a
+    // rocket, so refuse -- loudly, never silently.
+    if (control_mode == Mode::Number::FLIGHT &&
+        mode_flight.phase() != RocketControl::Phase::PAD) {
+        gcs().send_text(MAV_SEVERITY_CRITICAL,
+                        "RKT_ERR: mode change refused, in flight (phase %u)",
+                        (unsigned)mode_flight.phase());
+        return false;
+    }
+
     Mode *new_mode = mode_from_number(num);
     if (new_mode == nullptr) {
         notify_no_such_mode((uint8_t)num);
