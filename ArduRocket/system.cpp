@@ -11,28 +11,37 @@
  */
 void ArduRocket::init_ardupilot()
 {
-    // telemetry slots on the serial ports
-    gcs().setup_uarts();
-
+    // ORDERING IS SAFETY-CRITICAL HERE, not cosmetic.
+    //
+    // Everything that can arm must be initialised BEFORE the GCS starts
+    // serving MAVLink. Long init steps (compass.init(), barometer.calibrate(),
+    // ins.init()) call hal.scheduler->delay(), and AP_Vehicle's delay callback
+    // pumps MAVLink while they block -- so a GCS arm command can be handled
+    // part-way through this function. If that happens before gps.init(), the
+    // pre-arm GPS check dereferences a not-yet-allocated blended-GPS driver
+    // and the flight computer dies on the pad.
+    //
+    // Sensors first, MAVLink last.
     notify.init();
     battery.init();
+
+    // gps.init() is vehicle-owned (Blimp/system.cpp:63,
+    // ArduPlane/system.cpp:75). Skip it and AP_GPS::update_primary()
+    // dereferences an uninitialised backend the first time the 50 Hz GPS
+    // scheduler task fires -> SIGSEGV mid-flight-loop.
+    gps.init();
 
     // Compass init is vehicle-owned (ArduPlane/system.cpp:65-66). Without it
     // the compass never comes healthy, EKF3 has no yaw source, so it never
     // completes alignment: EKF_STATUS_REPORT stays all-zero and
     // ahrs.healthy() stays false forever -> ModeFlight::_enter() refuses.
+    // This one delays, hence it comes after gps.init().
 #if AP_COMPASS_ENABLED
     AP::compass().set_log_bit(MASK_LOG_IMU);
     AP::compass().init();
 #endif
 
     barometer.init();
-
-    // gps.init() is vehicle-owned too (Blimp/system.cpp:63,
-    // ArduPlane/system.cpp:75). Skip it and AP_GPS::update_primary()
-    // dereferences an uninitialised backend the first time the 50 Hz GPS
-    // scheduler task fires -> SIGSEGV mid-flight-loop.
-    gps.init();
 
 #if AP_RELAY_ENABLED
     relay.init();       // pyro channel
@@ -60,6 +69,12 @@ void ArduRocket::init_ardupilot()
     control_mode = Mode::Number::IDLE;
     flightmode = &mode_idle;
     flightmode->_enter();
+
+    // MAVLink comes up LAST, once every subsystem an arm command can touch is
+    // initialised. See the ordering note at the top of this function: doing
+    // this first opens a window where a GCS arm is serviced against
+    // half-initialised sensors.
+    gcs().setup_uarts();
 
     gcs().send_text(MAV_SEVERITY_INFO, "RKT: ArduRocket ready (IDLE)");
 }

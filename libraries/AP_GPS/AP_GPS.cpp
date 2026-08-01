@@ -1822,6 +1822,16 @@ bool AP_GPS::pre_arm_checks(char failure_msg[], uint16_t failure_msg_len)
     }
 
 #if AP_GPS_BLENDED_ENABLED
+    // The blended driver is allocated in AP_GPS::init(). A pre-arm check can
+    // reach here before that runs: AP_Vehicle's scheduler delay callback pumps
+    // MAVLink while long init steps block, so a GCS arm command can be
+    // serviced part-way through a vehicle's init_ardupilot(). Dereferencing
+    // the null driver killed the flight computer on the pad. Guard it, the
+    // same way logging_failed() below already guards drivers[i].
+    if (drivers[GPS_BLENDED_INSTANCE] == nullptr) {
+        hal.util->snprintf(failure_msg, failure_msg_len, "GPS blending not initialised");
+        return false;
+    }
     if (!drivers[GPS_BLENDED_INSTANCE]->is_healthy()) {
         hal.util->snprintf(failure_msg, failure_msg_len, "GPS blending unhealthy");
         return false;
