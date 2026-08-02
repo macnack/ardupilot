@@ -38,6 +38,14 @@ const AP_Scheduler::Task ArduRocket::scheduler_tasks[] = {
     // set home once the EKF has an origin; AHRS stays unhealthy without it
     SCHED_TASK(update_home_from_EKF,                                    10,  50,   5),
     SCHED_TASK_CLASS(GCS,  (GCS*)&rocket._gcs,          update_receive, 400, 180,   6),
+#if HAL_PARACHUTE_ENABLED
+    // AP_Parachute::update() is the only place the release output moves, and it
+    // wants ~10 Hz. Priority 7 keeps this table's priorities NON-DECREASING
+    // (3,4,5,6,7,9,12,15,18,20) -- see the update_logging10 comment below.
+    // Placed after GCS update_receive so a MAV_CMD_DO_PARACHUTE is actuated on
+    // the same tick it arrives.
+    SCHED_TASK(parachute_check,                                         10, 200,   7),
+#endif
     SCHED_TASK_CLASS(GCS,  (GCS*)&rocket._gcs,          update_send,    400, 550,   9),
 #if HAL_LOGGING_ENABLED
     SCHED_TASK_CLASS(AP_Logger,         &rocket.logger, periodic_tasks, 400, 300,  12),
@@ -72,6 +80,18 @@ void ArduRocket::handle_battery_failsafe(const char *type_str, const int8_t acti
     // report only -- see the rationale in ArduRocket.h
     gcs().send_text(MAV_SEVERITY_CRITICAL, "RKT_ERR: battery failsafe (%s)", type_str);
 }
+
+#if HAL_PARACHUTE_ENABLED
+void ArduRocket::parachute_check()
+{
+    // ArduPlane also calls parachute.check_sink_rate() here. ArduRocket does
+    // not: nothing on this vehicle calls parachute.set_is_flying(), so
+    // check_sink_rate() would return early anyway, and CHUTE_CRT_SINK is 0 by
+    // policy -- a rocket in ballistic descent sinks fast by design, so a bare
+    // sink-rate trigger would fire the pyro at whatever speed it reached.
+    parachute.update();
+}
+#endif
 
 void ArduRocket::update_sensors()
 {

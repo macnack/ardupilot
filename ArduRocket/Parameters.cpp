@@ -135,6 +135,12 @@ const AP_Param::Info ArduRocket::var_info[] = {
     GOBJECT(relay, "RELAY", AP_Relay),
 #endif
 
+#if HAL_PARACHUTE_ENABLED
+    // @Group: CHUTE_
+    // @Path: ../libraries/AP_Parachute/AP_Parachute.cpp
+    GOBJECT(parachute, "CHUTE_", AP_Parachute),
+#endif
+
     // @Group: SCHED_
     // @Path: ../libraries/AP_Scheduler/AP_Scheduler.cpp
     GOBJECT(scheduler, "SCHED_", AP_Scheduler),

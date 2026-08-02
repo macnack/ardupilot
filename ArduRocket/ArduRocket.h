@@ -20,6 +20,7 @@
 #include <AP_AHRS/AP_AHRS.h>
 #include <AP_Logger/AP_Logger.h>
 #include <AP_Relay/AP_Relay.h>
+#include <AP_Parachute/AP_Parachute.h>
 #include <AP_BattMonitor/AP_BattMonitor.h>
 #include <SRV_Channel/SRV_Channel.h>
 
@@ -106,6 +107,13 @@ private:
                                                void, const char *, const int8_t),
                            _failsafe_priorities};
 
+#if HAL_PARACHUTE_ENABLED
+    // The recovery release mechanism (Phase 2d). CHUTE_TYPE selects the
+    // actuator: 10 = servo on k_parachute_release, which is what the JSON SITL
+    // backend can see; 0-3 = relay, for hardware with RELAY1_FUNCTION 3.
+    AP_Parachute parachute;
+#endif
+
     ModeIdle   mode_idle;
     ModeFlight mode_flight;
 
@@ -115,6 +123,9 @@ private:
     // scheduler task bodies
     void update_sensors();
     void update_home_from_EKF();
+#if HAL_PARACHUTE_ENABLED
+    void parachute_check();
+#endif
 #if HAL_LOGGING_ENABLED
     void update_logging10();
 #endif

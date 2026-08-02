@@ -39,6 +39,7 @@ public:
         k_param_rc_channels,
         k_param_gcs0,
         k_param_gcs1,
+        k_param_parachute,
 
         // rocket controller gains (RKTC_ prefix)
         k_param_att_p = 100,
