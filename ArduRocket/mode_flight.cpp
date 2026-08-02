@@ -2,7 +2,7 @@
 
 #include <AP_Arming/AP_Arming.h>
 #include <AP_Logger/AP_Logger.h>
-#include <AP_Relay/AP_Relay.h>
+#include <AP_Parachute/AP_Parachute.h>
 
 /*
   FLIGHT mode: the only mode that flies.
@@ -27,6 +27,7 @@ bool ModeFlight::_enter()
     _fsm.reset();
     _ctrl.reset();
     _pyro_fired = false;
+    _chute_fault_sent = false;
     _last_update_ms = AP_HAL::millis();
     announce();
     return true;
@@ -43,19 +44,8 @@ void ModeFlight::announce()
                     RocketControl::RocketStateMachine::phase_name(_fsm.phase()));
 }
 
-void ModeFlight::set_pyro_mirror()
-{
-    // Sim mirror of the pyro relay: the JSON SITL backend transmits only servo
-    // PWM, so the MuJoCo bridge watches k_parachute_release to deploy the
-    // chute. The relay stays the authority; this only reflects _pyro_fired.
-    SRV_Channels::set_output_pwm(SRV_Channel::k_parachute_release,
-                                 _pyro_fired ? 2000 : 1000);
-}
-
 void ModeFlight::update()
 {
-    set_pyro_mirror();
-
     const uint32_t now_ms = AP_HAL::millis();
     const float dt = MAX((now_ms - _last_update_ms) * 1e-3f, 1e-3f);
     _last_update_ms = now_ms;
@@ -95,12 +85,18 @@ void ModeFlight::update()
         announce();
     }
 
-    // --- pyro: sole authority, gated by arming AND flight phase ---
+    // --- recovery release: AP_Parachute is the mechanism, the gate stays here.
+    //     CHUTE_TYPE picks the actuator (10 = servo on k_parachute_release for
+    //     the JSON SITL backend, 0-3 = relay for hardware with
+    //     RELAY1_FUNCTION 3), so the pyro gate never moves onto the output. ---
     if (_fsm.want_pyro() && !_pyro_fired) {
         if (AP::arming().is_armed()) {
-            AP_Relay *relay = AP::relay();
-            if (relay != nullptr) {
-                relay->on(0);
+            AP_Parachute *chute = AP::parachute();
+            // release() returns silently when CHUTE_ENABLED <= 0, so without
+            // this guard a misconfigured vehicle would announce "pyro fired"
+            // while nothing happened -- the worst available failure mode.
+            if (chute != nullptr && chute->enabled()) {
+                chute->release();
                 _pyro_fired = true;
                 gcs().send_text(MAV_SEVERITY_INFO, "RKT: pyro fired (%s)",
                                 _fsm.aborted() ? "abort" : "apogee");
@@ -108,6 +104,11 @@ void ModeFlight::update()
                     _fsm.reset_to_recovery();
                     announce();
                 }
+            } else if (!_chute_fault_sent) {
+                // one-shot: RocketStateMachine::_want_pyro is a latch that
+                // never clears, so an unlatched branch would spam at loop rate
+                _chute_fault_sent = true;
+                gcs().send_text(MAV_SEVERITY_CRITICAL, "RKT_ERR: chute disabled");
             }
         } else {
             gcs().send_text(MAV_SEVERITY_CRITICAL, "RKT_ERR: pyro blocked in phase %u",

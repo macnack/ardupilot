@@ -78,7 +78,7 @@ private:
     RocketControl::RocketStateMachine _fsm;
     RocketControl::RocketAttitudeControl _ctrl;
     bool _pyro_fired = false;
+    bool _chute_fault_sent = false;  // one-shot: _want_pyro is a latch
     uint32_t _last_update_ms = 0;
     void announce();
-    void set_pyro_mirror();
 };

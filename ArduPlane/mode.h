@@ -937,8 +937,8 @@ private:
     RocketControl::RocketStateMachine _fsm;
     RocketControl::RocketAttitudeControl _ctrl;
     bool _pyro_fired;
+    bool _chute_fault_sent;  // one-shot: _want_pyro is a latch
     uint32_t _last_update_ms;
     void set_fins(float cy, float cz);
-    void set_pyro_mirror();
     void announce();
 };
