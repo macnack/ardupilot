@@ -129,6 +129,15 @@ void ArduRocket::update_logging10()
 
 void ArduRocket::read_AHRS()
 {
+    // Mirror arming state into the HAL every tick, as ArduPlane does from its
+    // own ahrs_update() (ArduPlane.cpp:165). AP_Arming does NOT do this for
+    // you: without it hal.util->get_soft_armed() is stuck false, so the
+    // heartbeat never reports MAV_MODE_FLAG_SAFETY_ARMED (no GCS ever shows
+    // this vehicle as armed), vehicle_system_status() reports standby in
+    // flight, and the "never reboot an armed rocket" guard in
+    // GCS_MAVLINK_Rocket::handle_preflight_reboot silently never fires.
+    arming.update_soft_armed();
+
     // skip the INS update: the FAST_TASK above already ran it this tick
     ahrs.update(true);
 }

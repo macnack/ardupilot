@@ -46,6 +46,14 @@ bool AP_Arming_Rocket::rocket_checks(bool display_failure)
     return true;
 }
 
+void AP_Arming_Rocket::update_soft_armed()
+{
+    hal.util->set_soft_armed(is_armed());
+#if HAL_LOGGING_ENABLED
+    AP::logger().set_vehicle_armed(hal.util->get_soft_armed());
+#endif
+}
+
 bool AP_Arming_Rocket::pre_arm_checks(bool display_failure)
 {
     // Bitwise &, not &&: both halves must run so the operator sees EVERY

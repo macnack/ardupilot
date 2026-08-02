@@ -12,6 +12,12 @@ public:
 
     bool pre_arm_checks(bool display_failure) override;
 
+    // Mirror the arming state into HAL soft-armed. Every vehicle does this
+    // itself -- AP_Arming does not (ArduPlane/AP_Arming.cpp:390). Without it
+    // hal.util->get_soft_armed() is permanently false, which silently breaks
+    // every consumer of it on this vehicle.
+    void update_soft_armed();
+
 private:
     // rocket-specific gates: AHRS health, EKF origin, FSM at PAD, pad tilt
     bool rocket_checks(bool display_failure);
