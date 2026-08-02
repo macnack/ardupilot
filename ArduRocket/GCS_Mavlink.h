@@ -24,4 +24,13 @@ protected:
     // a live rocket must never reboot its flight computer
     MAV_RESULT handle_preflight_reboot(const mavlink_command_int_t &packet,
                                        const mavlink_message_t &msg) override;
+
+    MAV_RESULT handle_command_int_packet(const mavlink_command_int_t &packet,
+                                         const mavlink_message_t &msg) override;
+
+#if HAL_PARACHUTE_ENABLED
+    // there is no generic DO_PARACHUTE handler in libraries/GCS_MAVLink --
+    // every vehicle implements its own
+    MAV_RESULT handle_MAV_CMD_DO_PARACHUTE(const mavlink_command_int_t &packet);
+#endif
 };
